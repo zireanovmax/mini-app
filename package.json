@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build", 
+    "server": "node server/final-server.cjs",
+    "tunnel": "ssh -R 80:localhost:3000 serveo.net",
+    "start": "npm run build && npm run server",
+    "deploy": "npm run build && npm run server"
+  }
+}
