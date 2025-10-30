@@ -6,5 +6,8 @@
     "tunnel": "ssh -R 80:localhost:3000 serveo.net",
     "start": "npm run build && npm run server",
     "deploy": "npm run build && npm run server"
+    "dependencies": {
+  "vite": "^5.2.0"
+}
   }
 }
