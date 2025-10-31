@@ -1,25 +1,30 @@
-const TelegramBot = require('node-telegram-bot-api');
-const express = require('express');
-const path = require('path');
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Ваш Serveo URL - ЗАМЕНИТЕ НА СВОЙ
-const EXTERNAL_URL = 'https://9fac54a0171f587be6ccd1ec837391d1.serveo.net';
 
-// Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../dist')));
 
 // API endpoint
 app.post('/api/order', (req, res) => {
   console.log('📦 Заказ получен:', req.body);
+  // TODO: сохранить в БД, отправить e-mail, Telegram и т.д.
   res.json({ success: true, message: 'Заказ принят' });
 });
 
-app.get('/*', (req, res) => {
+app.get('*', (_, res) => {
   res.sendFile(path.join(__dirname, '../dist', 'index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });
 
 // Бот
