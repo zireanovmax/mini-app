@@ -3,15 +3,17 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import TelegramBot from 'node-telegram-bot-api';
 
+// Ваш токен и URL
+const TOKEN = '8428998356:AAFPu3NwVage2hHNtnTko3HOvqaogJi_e28';
+const EXTERNAL_URL = 'https://mini-app-roan-nine.vercel.app';
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Ваш токен и URL
-const TOKEN = '8428998356:AAFPu3NwVage2hHNtnTko3HOvqaogJi_e28';
-const EXTERNAL_URL = 'https://mini-app-roan-nine.vercel.app';
 
 // Инициализируем бота с вебхуком
 const bot = new TelegramBot(TOKEN, { webHook: true });
