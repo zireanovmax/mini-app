@@ -6,8 +6,6 @@ import TelegramBot from 'node-telegram-bot-api';
 // Ваш токен и URL
 const TOKEN = '8428998356:AAFPu3NwVage2hHNtnTko3HOvqaogJi_e28';
 const EXTERNAL_URL = 'https://mini-app-roan-nine.vercel.app';
-
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
