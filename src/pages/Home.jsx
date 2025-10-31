@@ -86,6 +86,8 @@ const parseTelegramDataFromURL = () => {
 function Home() {
   const deviceType = useDeviceType();
   const isMobile = deviceType === 'mobile';
+  const menuRef = useRef(null);
+  const [menuHeight, setMenuHeight] = useState(0);
 
   /* ---------- состояния ---------- */
   const [selectedCategory, setSelectedCategory] = useState('split');
@@ -95,7 +97,6 @@ function Home() {
   const [showFilters, setShowFilters] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [clientInfo, setClientInfo] = useState(null);
- 
 
   /* ---------- хуки данных ---------- */
   const { products, loading, setClientLevel } = useProducts();
@@ -120,6 +121,22 @@ function Home() {
     multi: 'Мультисплиты',
     materials: 'Материалы',
   };
+
+  /* ---------- измерение высоты меню ---------- */
+  useEffect(() => {
+    const updateMenuHeight = () => {
+      if (menuRef.current) {
+        const height = menuRef.current.offsetHeight;
+        setMenuHeight(height);
+        console.log('📏 Высота меню:', height);
+      }
+    };
+
+    updateMenuHeight();
+    window.addEventListener('resize', updateMenuHeight);
+    
+    return () => window.removeEventListener('resize', updateMenuHeight);
+  }, [showCategories, showFilters]);
 
   /* ---------- инициализация Telegram и проверка клиента ---------- */
   useEffect(() => {
@@ -181,7 +198,6 @@ function Home() {
           setClientInfo(clientData);
           console.log('🎯 Устанавливаем уровень клиента для продуктов:', clientData.level);
           setClientLevel(clientData.level);
-          
 
           // Показываем уведомление
           const levelNames = { 'opt1': 'ОПТ1', 'opt2': 'ОПТ2', 'opt3': 'ОПТ3' };
@@ -379,7 +395,8 @@ function Home() {
     productsCount: products.length,
     filteredCount: filteredProducts.length,
     cartItems: getTotalItems(),
-    isMobile
+    isMobile,
+    menuHeight
   });
 
   /* ---------- отображение ---------- */
@@ -387,13 +404,12 @@ function Home() {
     <div className="relative">
       
       {/* 1. ЛИПКОЕ МЕНЮ */}
-      <div className="sticky-menu">
+      <div className="sticky-menu" ref={menuRef}>
         <div
           className={`
             fixed top-0 left-0 right-0 z-40 bg-white shadow-lg border-b border-gray-200
             ${isMobile ? 'px-2 py-2' : 'px-4 py-3'}
           `}
-          
         >
           {/* Верхний ряд: поиск + корзина */}
           <div className="flex items-center gap-3 mb-2 h-8">
@@ -502,35 +518,13 @@ function Home() {
             )}
           </div>
         </div>
-
-        {/* Плейсхолдер под меню */}
-        <div
-          className="invisible"
-          style={{
-            height:
-              showCategories || showFilters
-                ? isMobile
-                  ? '180px'
-                  : '220px'
-                : isMobile
-                ? '80px'
-                : '90px',
-          }}
-        />
       </div>
 
       {/* 2. ОСНОВНОЙ КОНТЕНТ */}
       <div
         className={`${isMobile ? 'px-2' : 'px-4'}`}
         style={{
-          paddingTop:
-            showCategories || showFilters
-              ? isMobile
-                ? '180px'
-                : '220px'
-              : isMobile
-              ? '80px'
-              : '90px',
+          paddingTop: `${menuHeight}px`
         }}
       >
         {/* Информация о клиенте для десктопной версии */}
