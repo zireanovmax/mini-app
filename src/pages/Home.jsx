@@ -21,11 +21,68 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 
+/* ---------- Парсинг данных из URL Telegram WebApp ---------- */
+const parseTelegramDataFromURL = () => {
+  const url = window.location.href;
+  console.log('🔗 Анализируем URL:', url);
+  
+  try {
+    const tgWebAppDataMatch = url.match(/tgWebAppData=([^&]+)/);
+    if (tgWebAppDataMatch) {
+      const tgWebAppData = decodeURIComponent(tgWebAppDataMatch[1]);
+      console.log('📦 Найден tgWebAppData в URL:', tgWebAppData);
+      
+      const params = new URLSearchParams(tgWebAppData);
+      const userParam = params.get('user');
+      
+      if (userParam) {
+        const userData = JSON.parse(userParam);
+        console.log('👤 Данные пользователя из URL:', userData);
+        
+        return {
+          id: userData.id?.toString(),
+          firstName: userData.first_name || '',
+          lastName: userData.last_name || '',
+          username: userData.username || '',
+          fullName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim()
+        };
+      }
+    }
+    
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const tgWebAppDataHash = hashParams.get('tgWebAppData');
+    
+    if (tgWebAppDataHash) {
+      console.log('📦 Найден tgWebAppData в hash:', tgWebAppDataHash);
+      const params = new URLSearchParams(tgWebAppDataHash);
+      const userParam = params.get('user');
+      
+      if (userParam) {
+        const userData = JSON.parse(decodeURIComponent(userParam));
+        console.log('👤 Данные пользователя из hash:', userData);
+        
+        return {
+          id: userData.id?.toString(),
+          firstName: userData.first_name || '',
+          lastName: userData.last_name || '',
+          username: userData.username || '',
+          fullName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim()
+        };
+      }
+    }
+  } catch (error) {
+    console.error('❌ Ошибка парсинга данных из URL:', error);
+  }
+  
+  return null;
+};
+
+/* ==========================================
+   ГЛАВНЫЙ КОМПОНЕНТ
+   ========================================== */
 function Home() {
   const deviceType = useDeviceType();
   const isMobile = deviceType === 'mobile';
-  const menuRef = useRef(null);
-  const [menuHeight, setMenuHeight] = useState(80);
 
   /* ---------- состояния ---------- */
   const [selectedCategory, setSelectedCategory] = useState('split');
@@ -35,6 +92,7 @@ function Home() {
   const [showFilters, setShowFilters] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [clientInfo, setClientInfo] = useState(null);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   /* ---------- хуки данных ---------- */
   const { products, loading, setClientLevel } = useProducts();
@@ -60,105 +118,71 @@ function Home() {
     materials: 'Материалы',
   };
 
-  /* ---------- ФИКС ДЛЯ TELEGRAM LAYOUT ---------- */
+  /* ---------- инициализация Telegram и проверка клиента ---------- */
   useEffect(() => {
-    const fixTelegramLayout = () => {
-      console.log('🔧 Применяем фиксы для Telegram...');
-      
-      // Основные фиксы
-      document.body.style.overflow = 'auto';
-      document.body.style.position = 'relative';
-      document.body.style.backgroundColor = 'white';
-      document.documentElement.style.backgroundColor = 'white';
-      
-      // Фикс для мобильного viewport
-      const setVH = () => {
-        let vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
-      };
-      
-      setVH();
-      window.addEventListener('resize', setVH);
-      
-      // Инициализация Telegram WebApp
-      if (window.Telegram?.WebApp) {
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.enableClosingConfirmation();
-        tg.setHeaderColor('#ffffff');
-        tg.setBackgroundColor('#ffffff');
-      }
-      
-      // Принудительный рефлоу
-      setTimeout(() => {
-        window.dispatchEvent(new Event('resize'));
-      }, 100);
-      
-      return () => window.removeEventListener('resize', setVH);
-    };
-
-    const timer = setTimeout(fixTelegramLayout, 200);
-    return () => clearTimeout(timer);
-  }, []);
-
-  /* ---------- измерение высоты меню ---------- */
-  useEffect(() => {
-    const updateMenuHeight = () => {
-      if (menuRef.current) {
-        const height = menuRef.current.offsetHeight;
-        setMenuHeight(height);
-      }
-    };
-
-    updateMenuHeight();
-    window.addEventListener('resize', updateMenuHeight);
-    
-    return () => window.removeEventListener('resize', updateMenuHeight);
-  }, [showCategories, showFilters]);
-
-  /* ---------- инициализация Telegram ---------- */
-  useEffect(() => {
+    console.log('🏠 Home компонент монтируется');
+    console.log('📍 Текущий URL:', window.location.href);
+    console.log('📱 User Agent:', navigator.userAgent);
     initializeClient();
   }, []);
 
   const initializeClient = async () => {
     try {
+      console.log('🚀 Начинаем инициализацию клиента...');
+      
       let telegramUser = null;
 
-      if (window.Telegram?.WebApp) {
-        const tg = window.Telegram.WebApp;
-        const userData = tg.initDataUnsafe?.user;
-        
-        if (userData) {
-          telegramUser = {
-            id: userData.id?.toString(),
-            firstName: userData.first_name || '',
-            lastName: userData.last_name || '',
-            username: userData.username || ''
-          };
-        }
+      if (typeof window !== 'undefined' && window.Telegram && window.Telegram.WebApp) {
+        console.log('✅ Telegram WebApp ОБНАРУЖЕН через window.Telegram');
+        telegramUser = TelegramService.initTelegramAuth();
+      } else {
+        console.log('🔍 Telegram WebApp не обнаружен, проверяем данные в URL...');
+        telegramUser = parseTelegramDataFromURL();
       }
 
-      if (telegramUser?.id) {
+      console.log('📱 Результат инициализации Telegram:', telegramUser);
+
+      if (telegramUser && telegramUser.id) {
+        console.log('🎯 Telegram пользователь определен:', telegramUser.id);
+        
         const clientData = await getClientInfo(telegramUser.id);
+        console.log('📊 Результат проверки клиента в базе:', clientData);
         
         if (clientData) {
+          console.log('✅ Клиент найден в базе:', clientData);
           setClientInfo(clientData);
           setClientLevel(clientData.level);
         } else {
+          console.log('❌ Клиент не найден в базе оптовых клиентов');
           setClientInfo(null);
           setClientLevel(null);
         }
       } else {
+        console.log('🌐 Telegram пользователь не определен');
         setClientInfo(null);
         setClientLevel(null);
       }
     } catch (err) {
-      console.error('Ошибка инициализации:', err);
+      console.error('💥 Ошибка инициализации клиента:', err);
       setClientInfo(null);
       setClientLevel(null);
     }
   };
+
+  useEffect(() => {
+    console.log('🔄 clientInfo изменился:', clientInfo);
+  }, [clientInfo]);
+
+  useEffect(() => {
+    if (products.length > 0) {
+      console.log('📦 Продукты загружены:', products.length);
+    }
+  }, [products]);
+
+  useEffect(() => {
+    console.log('🔄 Сбрасываем фильтры при смене категории:', selectedCategory);
+    setFilters({ brand: '', power: '', type: '', wifi: '' });
+  }, [selectedCategory]);
 
   /* ---------- фильтры/поиск ---------- */
   const categoryProducts = products.filter(p => p.category === selectedCategory);
@@ -167,16 +191,20 @@ function Home() {
   const types = [...new Set(categoryProducts.map(p => p.type).filter(Boolean))];
   const wifis = [...new Set(categoryProducts.map(p => p.wifi).filter(Boolean))];
 
+  console.log('🎯 Категория:', selectedCategory, 'Продуктов:', categoryProducts.length);
+
   const searchInAllProducts = (text) => {
     if (!text) return categoryProducts;
     const lower = text.toLowerCase();
-    return products.filter(
+    const results = products.filter(
       (p) =>
         p.model?.toLowerCase().includes(lower) ||
         p.productModel?.toLowerCase().includes(lower) ||
         p.manufacturer?.toLowerCase().includes(lower) ||
         p.code?.toLowerCase().includes(lower)
     );
+    console.log('🔍 Поиск:', text, 'Найдено:', results.length);
+    return results;
   };
 
   const handleSearchChange = (e) => {
@@ -184,6 +212,7 @@ function Home() {
   };
 
   const handleAddToCart = (p) => {
+    console.log('🛒 Добавление в корзину:', p.id);
     addToCart(p);
   };
 
@@ -197,8 +226,11 @@ function Home() {
     .filter((p) => !filters.type || p.type === filters.type)
     .filter((p) => !filters.wifi || p.wifi === filters.wifi);
 
+  console.log('✅ Отфильтрованные продукты:', filteredProducts.length);
+
   /* ---------- выбор категории ---------- */
   const handleSelectCategory = (key) => {
+    console.log('🎯 Выбрана категория:', key);
     setSelectedCategory(key);
     setShowCategories(false);
   };
@@ -234,32 +266,17 @@ function Home() {
   // Функция проверки Telegram WebApp
   const isTelegramWebApp = () => {
     return typeof window !== 'undefined' && 
-           (!!window.Telegram?.WebApp || window.location.href.includes('tgWebAppData'));
+           (!!window.Telegram?.WebApp || 
+            window.location.href.includes('tgWebAppData'));
   };
 
   /* ---------- загрузка ---------- */
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className={`mx-auto ${isMobile ? 'px-2 py-2' : 'px-4 py-8'}`}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Загрузка каталога...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (products.length === 0 && !loading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Товары временно недоступны</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
-          >
-            Обновить
-          </button>
+          <p className="text-gray-600">Загрузка данных...</p>
         </div>
       </div>
     );
@@ -267,177 +284,197 @@ function Home() {
 
   /* ---------- отображение ---------- */
   return (
-    <div className="min-h-screen bg-white">
+    <div className="relative min-h-screen bg-gray-50">
       
-      {/* ЛИПКОЕ МЕНЮ */}
-      <div className="sticky top-0 z-50 bg-white shadow-md border-b border-gray-200" ref={menuRef}>
-        <div className={`${isMobile ? 'px-3 py-2' : 'px-4 py-3'}`}>
-          
-          {/* Верхний ряд: поиск + корзина */}
-          <div className="flex items-center gap-2 mb-2">
-            {/* Поле поиска */}
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder={isMobile ? 'Поиск...' : 'Поиск по товарам...'}
-                value={searchTerm}
-                onChange={handleSearchChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-              />
-            </div>
-
+      {/* 1. ЛИПКОЕ МЕНЮ */}
+      <div className="sticky-menu">
+        <div
+          className={`
+            fixed top-0 left-0 right-0 z-40 bg-white shadow-lg border-b border-gray-200
+            ${isMobile ? 'px-3 py-3' : 'px-6 py-4'}
+          `}
+        >
+          {/* Верхний ряд: заголовок + корзина */}
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-xl font-bold text-gray-900">Кондиционеры</h1>
+            
             {/* Кнопка корзины */}
             <button
               onClick={() => setIsCartOpen(true)}
-              className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg font-medium transition-colors relative"
+              className={`
+                flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg
+                font-medium relative ${isMobile ? 'px-3 py-2 text-sm' : 'px-4 py-2'}
+                transition-colors duration-200
+              `}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              {!isMobile && <span>Корзина</span>}
-              {getTotalItems() > 0 && (
-                <span className="bg-white text-green-600 rounded-full px-1 text-xs font-bold min-w-5 h-5 flex items-center justify-center absolute -top-1 -right-1">
-                  {getTotalItems()}
-                </span>
-              )}
+              <span className={isMobile ? 'hidden' : 'block'}>Корзина</span>
+              <span
+                className="
+                  bg-white text-blue-600 rounded-full font-bold absolute flex items-center justify-center
+                  px-1 text-xs min-w-5 h-5 -top-1 -right-1
+                "
+              >
+                {getTotalItems()}
+              </span>
             </button>
           </div>
 
-          {/* Второй ряд: Категории + Фильтры */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => toggleDrawer('cat')}
-              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                showCategories ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
-            >
-              📁 Категории
-            </button>
+          {/* Второй ряд: поиск */}
+          <div className="mb-4">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Поиск по товарам..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
+                className={`
+                  w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                  ${isMobile ? 'px-4 py-3 text-base' : 'px-4 py-3'}
+                  transition-all duration-200
+                `}
+              />
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
 
-            <button
-              onClick={() => toggleDrawer('flt')}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
-                showFilters ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
-            >
-              ⚙️ Фильтры
-            </button>
+          {/* Третий ряд: Категории + Фильтры + Бейдж уровня */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-1">
+              <button
+                onClick={() => toggleDrawer('cat')}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                  ${showCategories ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}
+                  flex-1 justify-center
+                `}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                Категории
+              </button>
+
+              <button
+                onClick={() => toggleDrawer('flt')}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                  ${showFilters ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}
+                `}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+                </svg>
+              </button>
+            </div>
 
             {/* Бейдж уровня клиента */}
-            {clientInfo ? (
-              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full whitespace-nowrap">
-                {clientInfo.level.toUpperCase()}
-              </span>
-            ) : isTelegramWebApp() ? (
-              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full whitespace-nowrap">
-                РОЗНИЦА
-              </span>
-            ) : null}
+            <div className="flex-shrink-0">
+              {clientInfo ? (
+                <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium border border-green-200">
+                  {clientInfo.level.toUpperCase()}
+                </div>
+              ) : isTelegramWebApp() ? (
+                <div className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-medium border border-gray-200">
+                  РОЗНИЦА
+                </div>
+              ) : null}
+            </div>
           </div>
 
           {/* Выплывающие блоки */}
-          <div className={`transition-all duration-200 ease-in-out overflow-hidden ${
-            showCategories || showFilters ? 'max-h-64 opacity-100 mt-2' : 'max-h-0 opacity-0'
-          }`}>
+          <div
+            className={`
+              overflow-hidden transition-all duration-300 ease-in-out bg-white mt-3 rounded-lg border border-gray-200
+              ${showCategories || showFilters ? 'max-h-96 opacity-100 py-4' : 'max-h-0 opacity-0'}
+            `}
+          >
             {showCategories && (
-              <div className="bg-white border border-gray-200 rounded-lg p-2">
-                <div className="grid grid-cols-2 gap-2">
-                  {Object.entries(categories).map(([key, name]) => (
-                    <button
-                      key={key}
-                      onClick={() => handleSelectCategory(key)}
-                      className={`p-2 rounded text-sm text-left transition-colors ${
-                        selectedCategory === key
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                      }`}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <CategoryMenu
+                categories={categories}
+                selectedCategory={selectedCategory}
+                onSelectCategory={handleSelectCategory}
+                deviceType={deviceType}
+                largeButtons
+              />
             )}
 
             {showFilters && (
-              <div className="bg-white border border-gray-200 rounded-lg p-3">
-                <div className="space-y-3">
-                  {/* Бренды */}
-                  {brands.length > 0 && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Бренд</label>
-                      <select 
-                        value={filters.brand}
-                        onChange={(e) => setFilters(prev => ({...prev, brand: e.target.value}))}
-                        className="w-full p-2 border border-gray-300 rounded text-sm"
-                      >
-                        <option value="">Все бренды</option>
-                        {brands.map(brand => (
-                          <option key={brand} value={brand}>{brand}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Мощность */}
-                  {powers.length > 0 && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Мощность</label>
-                      <select 
-                        value={filters.power}
-                        onChange={(e) => setFilters(prev => ({...prev, power: e.target.value}))}
-                        className="w-full p-2 border border-gray-300 rounded text-sm"
-                      >
-                        <option value="">Любая мощность</option>
-                        {powers.map(power => (
-                          <option key={power} value={power}>{power}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Кнопка сброса */}
-                  <button
-                    onClick={() => setFilters({ brand: '', power: '', type: '', wifi: '' })}
-                    className="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 rounded text-sm"
-                  >
-                    Сбросить фильтры
-                  </button>
-                </div>
-              </div>
+              <Filters
+                brands={brands}
+                powers={powers}
+                types={types}
+                wifis={wifis}
+                filters={filters}
+                setFilters={setFilters}
+                deviceType={deviceType}
+              />
             )}
           </div>
         </div>
+
+        {/* Плейсхолдер под меню */}
+        <div
+          className="invisible"
+          style={{
+            height: showCategories || showFilters 
+              ? (isMobile ? '260px' : '280px')
+              : (isMobile ? '180px' : '200px')
+          }}
+        />
       </div>
 
-      {/* ОСНОВНОЙ КОНТЕНТ */}
-      <div 
-        className={`bg-gray-50 min-h-screen ${isMobile ? 'px-3 py-3' : 'px-4 py-4'}`}
-        style={{ paddingTop: `${menuHeight}px` }}
+      {/* 2. ОСНОВНОЙ КОНТЕНТ */}
+      <div
+        className={isMobile ? 'px-3' : 'px-6'}
+        style={{
+          paddingTop: showCategories || showFilters 
+            ? (isMobile ? '260px' : '280px')
+            : (isMobile ? '180px' : '200px')
+        }}
       >
-        {/* Заголовок категории */}
-        <div className="mb-4">
-          <h1 className="text-xl font-bold text-gray-900">
-            {debouncedSearchTerm
-              ? `Результаты поиска: "${debouncedSearchTerm}"`
-              : categories[selectedCategory]}
-          </h1>
-          <p className="text-gray-600 text-sm mt-1">
-            Найдено товаров: {filteredProducts.length}
-          </p>
-        </div>
+        {/* Информация о клиенте */}
+        {clientInfo && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-green-800 text-lg">Оптовые цены активны</h3>
+                <p className="text-green-600 mt-1">
+                  Уровень: <strong>{clientInfo.level.toUpperCase()}</strong> | 
+                  Клиент: <strong>{clientInfo.name}</strong>
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-green-600 bg-white px-3 py-2 rounded-lg border border-green-200">
+                  {clientInfo.level.toUpperCase()}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-        {/* Список товаров */}
         <ProductList
           products={filteredProducts}
-          categoryName={categories[selectedCategory]}
+          categoryName={
+            debouncedSearchTerm
+              ? `Результаты поиска: "${debouncedSearchTerm}"`
+              : categories[selectedCategory]
+          }
           onAddToCart={handleAddToCart}
           deviceType={deviceType}
           clientInfo={clientInfo}
         />
       </div>
 
-      {/* МОДАЛКА КОРЗИНЫ */}
+      {/* 3. МОДАЛКА КОРЗИНЫ */}
       <CartModal
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
