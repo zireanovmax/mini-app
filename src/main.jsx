@@ -1,3 +1,11 @@
+// Инициализация Telegram WebApp
+if (window.Telegram?.WebApp) {
+  const tg = window.Telegram.WebApp;
+  tg.ready();          // сообщаем, что готовы
+  tg.expand();         // раскрываем на весь экран
+  tg.disableVerticalSwipe(); // отключаем нативный свайп
+}
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
