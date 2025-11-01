@@ -419,7 +419,7 @@ function Home() {
               }}
               className={`
                 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded
-                font-medium relative h-8 px-4 text-sm min-w-[96px]
+                font-medium relative h-4 px-4 text-sm min-w-[32px]
               `}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
