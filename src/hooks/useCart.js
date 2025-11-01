@@ -2,24 +2,42 @@ import { useState, useEffect } from 'react';
 
 export const useCart = () => {
   const [cart, setCart] = useState([]);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Загружаем корзину из localStorage при монтировании
+  // Загружаем корзину из localStorage только после монтирования
   useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
+    setIsMounted(true);
+    try {
+      const savedCart = localStorage.getItem('cart');
+      if (savedCart) {
+        setCart(JSON.parse(savedCart));
+      }
+    } catch (error) {
+      console.error('❌ Ошибка загрузки корзины:', error);
     }
   }, []);
 
   // Сохраняем корзину в localStorage при изменении
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cart));
-  }, [cart]);
+    if (isMounted) {
+      try {
+        localStorage.setItem('cart', JSON.stringify(cart));
+      } catch (error) {
+        console.error('❌ Ошибка сохранения корзины:', error);
+      }
+    }
+  }, [cart, isMounted]);
 
   // Функция для получения цены товара
   const getProductPrice = (product) => {
-    const price = parseFloat(product.newPrice?.replace(/\s/g, '') || product.oldPrice?.replace(/\s/g, '') || '0');
-    return price;
+    try {
+      const priceStr = product.newPrice || product.oldPrice || '0';
+      const price = parseFloat(priceStr.toString().replace(/\s/g, '').replace(',', '.'));
+      return isNaN(price) ? 0 : price;
+    } catch (error) {
+      console.error('❌ Ошибка парсинга цены:', error);
+      return 0;
+    }
   };
 
   // Добавить товар в корзину
@@ -28,15 +46,17 @@ export const useCart = () => {
       const existingItem = prevCart.find(item => item.id === product.id);
       
       if (existingItem) {
-        // Если товар уже есть, увеличиваем количество
         return prevCart.map(item =>
           item.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       } else {
-        // Если товара нет, добавляем с количеством 1
-        return [...prevCart, { ...product, quantity: 1 }];
+        return [...prevCart, { 
+          ...product, 
+          quantity: 1,
+          price: getProductPrice(product)
+        }];
       }
     });
   };
@@ -69,13 +89,14 @@ export const useCart = () => {
 
   // Подсчет общего количества товаров
   const getTotalItems = () => {
-    return cart.reduce((total, item) => total + item.quantity, 0);
+    return cart.reduce((total, item) => total + (item.quantity || 0), 0);
   };
 
   // Подсчет общей стоимости
   const getTotalPrice = () => {
     return cart.reduce((total, item) => {
-      return total + (getProductPrice(item) * item.quantity);
+      const price = item.price || getProductPrice(item);
+      return total + (price * (item.quantity || 1));
     }, 0);
   };
 

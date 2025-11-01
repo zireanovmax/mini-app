@@ -7,3 +7,174 @@ body {
   padding: 0;
   font-family: system-ui, -apple-system, sans-serif;
 }
+
+/* ==========================================
+   ФИКСЫ ДЛЯ TELEGRAM WEBAPP
+   ========================================== */
+
+/* Базовые фиксы для HTML и body */
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+  background: white;
+}
+
+#root {
+  min-height: 100vh;
+  background: white;
+}
+
+/* Фиксы для sticky меню */
+.sticky-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Основной контент - всегда ниже sticky меню */
+.main-content {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Фиксы для мобильных устройств и Telegram WebView */
+@media (max-width: 768px) {
+  body {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .sticky-menu {
+    position: fixed;
+    width: 100%;
+    left: 0;
+    right: 0;
+  }
+  
+  /* Фикс для скролла на iOS */
+  .tg-webapp {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Фиксы для скролла в Telegram */
+.tg-webapp {
+  overscroll-behavior: none;
+  height: 100vh;
+}
+
+/* Фикс для кнопок в Telegram */
+button {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* Фикс для инпутов */
+input, textarea, select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border-radius: 0;
+}
+
+/* Убираем синее выделение при тапе на iOS */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Фиксы для модальных окон */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow: auto;
+}
+
+/* Фиксы для корзины */
+.cart-item {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 0;
+}
+
+.cart-item:last-child {
+  border-bottom: none;
+}
+
+/* Анимации для плавного открытия/закрытия */
+.slide-down {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Фиксы для продуктовой сетки */
+.product-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+@media (max-width: 640px) {
+  .product-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+/* Фиксы для заголовков */
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  padding: 0;
+}
+
+/* Фикс для изображений */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Утилитные классы для отладки */
+.debug-border {
+  border: 1px solid red;
+}
+
+.debug-border-green {
+  border: 1px solid green;
+}
+
+.debug-border-blue {
+  border: 1px solid blue;
+}
