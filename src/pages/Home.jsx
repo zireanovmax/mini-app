@@ -1,40 +1,3 @@
-// В начало Home.jsx ДОБАВЬТЕ ЭТОТ КОД:
-import React, { useState, useEffect, useRef } from 'react';
-
-// ЯРКИЙ ТЕСТОВЫЙ БАННЕР
-const TestBanner = () => (
-  <div style={{
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    background: 'red',
-    color: 'white',
-    padding: '10px',
-    textAlign: 'center',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    zIndex: 9999
-  }}>
-    🚨 ТЕСТ: Home.jsx ЗАГРУЖЕН - {new Date().toLocaleTimeString()} 🚨
-  </div>
-);
-
-function Home() {
-  // В НАЧАЛО КОМПОНЕНТА ДОБАВЬТЕ:
-  console.log('🔥 HOME COMPONENT RENDERED - VERSION 3.0');
-  
-  // В return ДОБАВЬТЕ ПЕРВОЙ СТРОКОЙ:
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <TestBanner /> {/* ДОБАВИТЬ ЭТУ СТРОКУ */}
-      
-      {/* остальная верстка */}
-    </div>
-  );
-}
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import CategoryMenu from '../components/CategoryMenu';
@@ -58,70 +21,11 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 
-/* ---------- Парсинг данных из URL Telegram WebApp ---------- */
-const parseTelegramDataFromURL = () => {
-  const url = window.location.href;
-  console.log('🔗 Анализируем URL:', url);
-  
-  try {
-    const tgWebAppDataMatch = url.match(/tgWebAppData=([^&]+)/);
-    if (tgWebAppDataMatch) {
-      const tgWebAppData = decodeURIComponent(tgWebAppDataMatch[1]);
-      console.log('📦 Найден tgWebAppData в URL:', tgWebAppData);
-      
-      const params = new URLSearchParams(tgWebAppData);
-      const userParam = params.get('user');
-      
-      if (userParam) {
-        const userData = JSON.parse(userParam);
-        console.log('👤 Данные пользователя из URL:', userData);
-        
-        return {
-          id: userData.id?.toString(),
-          firstName: userData.first_name || '',
-          lastName: userData.last_name || '',
-          username: userData.username || '',
-          fullName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim()
-        };
-      }
-    }
-    
-    const hashParams = new URLSearchParams(window.location.hash.slice(1));
-    const tgWebAppDataHash = hashParams.get('tgWebAppData');
-    
-    if (tgWebAppDataHash) {
-      console.log('📦 Найден tgWebAppData в hash:', tgWebAppDataHash);
-      const params = new URLSearchParams(tgWebAppDataHash);
-      const userParam = params.get('user');
-      
-      if (userParam) {
-        const userData = JSON.parse(decodeURIComponent(userParam));
-        console.log('👤 Данные пользователя из hash:', userData);
-        
-        return {
-          id: userData.id?.toString(),
-          firstName: userData.first_name || '',
-          lastName: userData.last_name || '',
-          username: userData.username || '',
-          fullName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim()
-        };
-      }
-    }
-  } catch (error) {
-    console.error('❌ Ошибка парсинга данных из URL:', error);
-  }
-  
-  return null;
-};
-
-/* ==========================================
-   ГЛАВНЫЙ КОМПОНЕНТ
-   ========================================== */
 function Home() {
   const deviceType = useDeviceType();
   const isMobile = deviceType === 'mobile';
   const menuRef = useRef(null);
-  const [menuHeight, setMenuHeight] = useState(80); // начальная высота
+  const [menuHeight, setMenuHeight] = useState(80);
 
   /* ---------- состояния ---------- */
   const [selectedCategory, setSelectedCategory] = useState('split');
@@ -161,29 +65,14 @@ function Home() {
     const fixTelegramLayout = () => {
       console.log('🔧 Применяем фиксы для Telegram...');
       
-      // Основные фиксы
       document.body.style.overflow = 'auto';
       document.body.style.position = 'relative';
-      document.body.style.minHeight = '100vh';
       
-      // Фикс viewport height для мобильных
-      const setVH = () => {
-        let vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
-      };
-      
-      setVH();
-      window.addEventListener('resize', setVH);
-      
-      // Инициализация Telegram WebApp
       if (window.Telegram?.WebApp) {
         const tg = window.Telegram.WebApp;
         tg.expand();
         tg.enableClosingConfirmation();
-        tg.ready();
       }
-      
-      return () => window.removeEventListener('resize', setVH);
     };
 
     const timer = setTimeout(fixTelegramLayout, 150);
@@ -196,39 +85,25 @@ function Home() {
       if (menuRef.current) {
         const height = menuRef.current.offsetHeight;
         setMenuHeight(height);
-        console.log('📏 Высота меню:', height);
       }
     };
 
-    // Обновляем высоту при изменениях
     updateMenuHeight();
-    const resizeObserver = new ResizeObserver(updateMenuHeight);
-    if (menuRef.current) {
-      resizeObserver.observe(menuRef.current);
-    }
-    
     window.addEventListener('resize', updateMenuHeight);
     
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateMenuHeight);
-    };
+    return () => window.removeEventListener('resize', updateMenuHeight);
   }, [showCategories, showFilters]);
 
-  /* ---------- инициализация Telegram и проверка клиента ---------- */
+  /* ---------- инициализация Telegram ---------- */
   useEffect(() => {
-    console.log('🏠 Home компонент монтируется');
     initializeClient();
   }, []);
 
   const initializeClient = async () => {
     try {
-      console.log('🚀 Начинаем инициализацию клиента...');
-      
       let telegramUser = null;
 
       if (window.Telegram?.WebApp) {
-        console.log('✅ Telegram WebApp обнаружен');
         const tg = window.Telegram.WebApp;
         const userData = tg.initDataUnsafe?.user;
         
@@ -237,53 +112,27 @@ function Home() {
             id: userData.id?.toString(),
             firstName: userData.first_name || '',
             lastName: userData.last_name || '',
-            username: userData.username || '',
-            fullName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim()
+            username: userData.username || ''
           };
         }
-      } else {
-        console.log('🔍 Проверяем данные в URL...');
-        telegramUser = parseTelegramDataFromURL();
       }
 
-      console.log('📱 Результат инициализации Telegram:', telegramUser);
-
       if (telegramUser?.id) {
-        console.log('🎯 Telegram пользователь определен');
-        
         const clientData = await getClientInfo(telegramUser.id);
-        console.log('📊 Результат проверки клиента:', clientData);
         
         if (clientData) {
           setClientInfo(clientData);
           setClientLevel(clientData.level);
-          
-          const levelNames = { 'opt1': 'ОПТ1', 'opt2': 'ОПТ2', 'opt3': 'ОПТ3' };
-          const levelName = levelNames[clientData.level] || clientData.level;
-          const clientName = clientData.name || telegramUser.firstName || 'Клиент';
-          
-          setTimeout(() => {
-            TelegramService.showNotification(
-              `🎉 Добро пожаловать, ${clientName}!\n\nВам доступны оптовые цены уровня: ${levelName}`
-            );
-          }, 1000);
-          
         } else {
           setClientInfo(null);
           setClientLevel(null);
-          
-          setTimeout(() => {
-            TelegramService.showNotification(
-              `👋 Добро пожаловать!\n\nДля вас действуют розничные цены.`
-            );
-          }, 1000);
         }
       } else {
         setClientInfo(null);
         setClientLevel(null);
       }
     } catch (err) {
-      console.error('💥 Ошибка инициализации клиента:', err);
+      console.error('Ошибка инициализации:', err);
       setClientInfo(null);
       setClientLevel(null);
     }
@@ -299,14 +148,13 @@ function Home() {
   const searchInAllProducts = (text) => {
     if (!text) return categoryProducts;
     const lower = text.toLowerCase();
-    const results = products.filter(
+    return products.filter(
       (p) =>
         p.model?.toLowerCase().includes(lower) ||
         p.productModel?.toLowerCase().includes(lower) ||
         p.manufacturer?.toLowerCase().includes(lower) ||
         p.code?.toLowerCase().includes(lower)
     );
-    return results;
   };
 
   const handleSearchChange = (e) => {
@@ -374,11 +222,6 @@ function Home() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Загрузка данных...</p>
-          {clientInfo && (
-            <p className="text-sm text-green-600 mt-2">
-              {clientInfo.level.toUpperCase()}
-            </p>
-          )}
         </div>
       </div>
     );
@@ -387,9 +230,11 @@ function Home() {
   /* ---------- отображение ---------- */
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 1. ЛИПКОЕ МЕНЮ */}
+      
+      {/* ЛИПКОЕ МЕНЮ */}
       <div className="sticky-menu sticky top-0 z-40 bg-white shadow-lg border-b border-gray-200" ref={menuRef}>
         <div className={`${isMobile ? 'px-3 py-3' : 'px-4 py-3'}`}>
+          
           {/* Верхний ряд: поиск + корзина */}
           <div className="flex items-center gap-3 mb-3">
             {/* Поле поиска */}
@@ -418,7 +263,7 @@ function Home() {
             </button>
           </div>
 
-          {/* Второй ряд: Категории + Фильтры + Бейдж уровня */}
+          {/* Второй ряд: Категории + Фильтры */}
           <div className="flex items-center justify-between gap-3">
             <button
               onClick={() => toggleDrawer('cat')}
@@ -478,34 +323,11 @@ function Home() {
         </div>
       </div>
 
-      {/* 2. ОСНОВНОЙ КОНТЕНТ */}
+      {/* ОСНОВНОЙ КОНТЕНТ */}
       <div 
         className={`${isMobile ? 'px-3 py-4' : 'px-4 py-6'}`}
         style={{ paddingTop: `${menuHeight}px` }}
       >
-        {/* Информация о клиенте для десктопной версии */}
-        {!isMobile && clientInfo && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-green-800">Оптовые цены активны</h3>
-                <p className="text-sm text-green-600">
-                  Уровень: <strong>{clientInfo.level.toUpperCase()}</strong> | 
-                  Клиент: <strong>{clientInfo.name}</strong>
-                </p>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-green-600">
-                  {clientInfo.level.toUpperCase()}
-                </div>
-                <div className="text-xs text-green-500">
-                  Оптовые цены
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         <ProductList
           products={filteredProducts}
           categoryName={
@@ -519,7 +341,7 @@ function Home() {
         />
       </div>
 
-      {/* 3. МОДАЛКА КОРЗИНЫ */}
+      {/* МОДАЛКА КОРЗИНЫ */}
       <CartModal
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
