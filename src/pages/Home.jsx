@@ -430,57 +430,71 @@ function Home() {
         {/* Список товаров в сетке 2 колонки */}
         <div className="grid grid-cols-2 gap-3">
           {filteredProducts.map((product) => (
-            <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 flex flex-col">
+            <div 
+              key={product.id} 
+              className="bg-white rounded-lg shadow-md border-2 border-gray-100 hover:border-blue-300 transition-all duration-200 p-3 flex flex-col"
+            >
               {/* Изображение товара */}
-              <div className="aspect-square bg-gray-100 rounded-lg mb-2 flex items-center justify-center">
+              <div className="aspect-square bg-gray-50 rounded-lg mb-3 flex items-center justify-center overflow-hidden border border-gray-200">
                 {product.image ? (
                   <img 
                     src={product.image} 
                     alt={product.model}
-                    className="w-full h-full object-cover rounded-lg"
+                    className="w-full h-full object-contain p-2"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
                   />
-                ) : (
-                  <div className="text-gray-400 text-xs text-center">
-                    Нет изображения
+                ) : null}
+                <div className="hidden flex-col items-center justify-center text-gray-400 text-xs text-center p-2">
+                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mb-1">
+                    <span className="text-gray-500">📷</span>
                   </div>
-                )}
+                  <span>Нет фото</span>
+                </div>
               </div>
 
               {/* Информация о товаре */}
-              <div className="flex-1">
-                <h3 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-2">
-                  {product.model}
+              <div className="flex-1 mb-3">
+                <h3 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-2 leading-tight">
+                  {product.model || product.productModel || 'Без названия'}
                 </h3>
                 <p className="text-xs text-gray-600 mb-1">
-                  {product.manufacturer}
+                  {product.manufacturer || 'Производитель не указан'}
                 </p>
                 {product.power && (
-                  <p className="text-xs text-gray-500 mb-2">
-                    Мощность: {product.power}
+                  <p className="text-xs text-gray-500 mb-1">
+                    💪 {product.power}
+                  </p>
+                )}
+                {product.type && (
+                  <p className="text-xs text-gray-500">
+                    📋 {product.type}
                   </p>
                 )}
               </div>
 
               {/* Цена и кнопка */}
               <div className="mt-auto">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    {product.oldPrice && (
-                      <div className="text-xs text-gray-500 line-through">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-col">
+                    {product.oldPrice && product.oldPrice !== product.newPrice && (
+                      <div className="text-xs text-gray-500 line-through mb-1">
                         {product.oldPrice} ₽
                       </div>
                     )}
                     <div className="text-lg font-bold text-green-600">
-                      {product.newPrice || product.price} ₽
+                      {product.newPrice || product.price || '0'} ₽
                     </div>
                   </div>
                 </div>
 
                 <button
                   onClick={() => handleAddToCart(product)}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
                 >
-                  В корзину
+                  🛒 В корзину
                 </button>
               </div>
             </div>
@@ -490,13 +504,17 @@ function Home() {
         {/* Сообщение если товаров нет */}
         {filteredProducts.length === 0 && (
           <div className="text-center py-8">
-            <p className="text-gray-500">Товары не найдены</p>
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-2xl">🔍</span>
+            </div>
+            <p className="text-gray-500 text-lg mb-2">Товары не найдены</p>
+            <p className="text-gray-400 text-sm mb-4">Попробуйте изменить параметры поиска или фильтры</p>
             <button
               onClick={() => {
                 setSearchTerm('');
                 setFilters({ brand: '', power: '', type: '', wifi: '' });
               }}
-              className="mt-2 text-blue-500 text-sm hover:text-blue-600"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg text-sm transition-colors"
             >
               Сбросить фильтры
             </button>
