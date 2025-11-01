@@ -412,7 +412,7 @@ function Home() {
 
       {/* ОСНОВНОЙ КОНТЕНТ */}
       <div 
-        className={`bg-gray-50 min-h-screen ${isMobile ? 'px-3 py-3' : 'px-4 py-4'}`}
+        className={`bg-gray-50 min-h-screen ${isMobile ? 'px-2 py-3' : 'px-4 py-4'}`}
         style={{ paddingTop: `${menuHeight}px` }}
       >
         {/* Заголовок категории */}
@@ -427,14 +427,81 @@ function Home() {
           </p>
         </div>
 
-        {/* Список товаров */}
-        <ProductList
-          products={filteredProducts}
-          categoryName={categories[selectedCategory]}
-          onAddToCart={handleAddToCart}
-          deviceType={deviceType}
-          clientInfo={clientInfo}
-        />
+        {/* Список товаров в сетке 2 колонки */}
+        <div className="grid grid-cols-2 gap-3">
+          {filteredProducts.map((product) => (
+            <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 flex flex-col">
+              {/* Изображение товара */}
+              <div className="aspect-square bg-gray-100 rounded-lg mb-2 flex items-center justify-center">
+                {product.image ? (
+                  <img 
+                    src={product.image} 
+                    alt={product.model}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="text-gray-400 text-xs text-center">
+                    Нет изображения
+                  </div>
+                )}
+              </div>
+
+              {/* Информация о товаре */}
+              <div className="flex-1">
+                <h3 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-2">
+                  {product.model}
+                </h3>
+                <p className="text-xs text-gray-600 mb-1">
+                  {product.manufacturer}
+                </p>
+                {product.power && (
+                  <p className="text-xs text-gray-500 mb-2">
+                    Мощность: {product.power}
+                  </p>
+                )}
+              </div>
+
+              {/* Цена и кнопка */}
+              <div className="mt-auto">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    {product.oldPrice && (
+                      <div className="text-xs text-gray-500 line-through">
+                        {product.oldPrice} ₽
+                      </div>
+                    )}
+                    <div className="text-lg font-bold text-green-600">
+                      {product.newPrice || product.price} ₽
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleAddToCart(product)}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  В корзину
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Сообщение если товаров нет */}
+        {filteredProducts.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-gray-500">Товары не найдены</p>
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setFilters({ brand: '', power: '', type: '', wifi: '' });
+              }}
+              className="mt-2 text-blue-500 text-sm hover:text-blue-600"
+            >
+              Сбросить фильтры
+            </button>
+          </div>
+        )}
       </div>
 
       {/* МОДАЛКА КОРЗИНЫ */}
