@@ -1,3 +1,40 @@
+// В начало Home.jsx ДОБАВЬТЕ ЭТОТ КОД:
+import React, { useState, useEffect, useRef } from 'react';
+
+// ЯРКИЙ ТЕСТОВЫЙ БАННЕР
+const TestBanner = () => (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    background: 'red',
+    color: 'white',
+    padding: '10px',
+    textAlign: 'center',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    zIndex: 9999
+  }}>
+    🚨 ТЕСТ: Home.jsx ЗАГРУЖЕН - {new Date().toLocaleTimeString()} 🚨
+  </div>
+);
+
+function Home() {
+  // В НАЧАЛО КОМПОНЕНТА ДОБАВЬТЕ:
+  console.log('🔥 HOME COMPONENT RENDERED - VERSION 3.0');
+  
+  // В return ДОБАВЬТЕ ПЕРВОЙ СТРОКОЙ:
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <TestBanner /> {/* ДОБАВИТЬ ЭТУ СТРОКУ */}
+      
+      {/* остальная верстка */}
+    </div>
+  );
+}
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import CategoryMenu from '../components/CategoryMenu';
