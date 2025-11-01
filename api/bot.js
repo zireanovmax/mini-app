@@ -18,7 +18,7 @@ export default async function handler(req, res) {
         inline_keyboard: [[
           {
             text: '🛍️ Открыть приложение',
-            web_app: { url: EXTERNAL_URL }
+            web_app: { url: `${EXTERNAL_URL}?v=${Date.now()}` }
           }
         ]]
       };
