@@ -21,11 +21,71 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 
+/* ---------- Парсинг данных из URL Telegram WebApp ---------- */
+const parseTelegramDataFromURL = () => {
+  const url = window.location.href;
+  console.log('🔗 Анализируем URL:', url);
+  
+  try {
+    // Ищем параметр tgWebAppData в URL
+    const tgWebAppDataMatch = url.match(/tgWebAppData=([^&]+)/);
+    if (tgWebAppDataMatch) {
+      const tgWebAppData = decodeURIComponent(tgWebAppDataMatch[1]);
+      console.log('📦 Найден tgWebAppData в URL:', tgWebAppData);
+      
+      // Парсим данные
+      const params = new URLSearchParams(tgWebAppData);
+      const userParam = params.get('user');
+      
+      if (userParam) {
+        const userData = JSON.parse(userParam);
+        console.log('👤 Данные пользователя из URL:', userData);
+        
+        return {
+          id: userData.id?.toString(),
+          firstName: userData.first_name || '',
+          lastName: userData.last_name || '',
+          username: userData.username || '',
+          fullName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim()
+        };
+      }
+    }
+    
+    // Проверяем hash параметры
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const tgWebAppDataHash = hashParams.get('tgWebAppData');
+    
+    if (tgWebAppDataHash) {
+      console.log('📦 Найден tgWebAppData в hash:', tgWebAppDataHash);
+      const params = new URLSearchParams(tgWebAppDataHash);
+      const userParam = params.get('user');
+      
+      if (userParam) {
+        const userData = JSON.parse(decodeURIComponent(userParam));
+        console.log('👤 Данные пользователя из hash:', userData);
+        
+        return {
+          id: userData.id?.toString(),
+          firstName: userData.first_name || '',
+          lastName: userData.last_name || '',
+          username: userData.username || '',
+          fullName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim()
+        };
+      }
+    }
+  } catch (error) {
+    console.error('❌ Ошибка парсинга данных из URL:', error);
+  }
+  
+  return null;
+};
+
+/* ==========================================
+   ГЛАВНЫЙ КОМПОНЕНТ
+   ========================================== */
 function Home() {
   const deviceType = useDeviceType();
   const isMobile = deviceType === 'mobile';
-  const menuRef = useRef(null);
-  const [menuHeight, setMenuHeight] = useState(80);
 
   /* ---------- состояния ---------- */
   const [selectedCategory, setSelectedCategory] = useState('split');
@@ -35,6 +95,7 @@ function Home() {
   const [showFilters, setShowFilters] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [clientInfo, setClientInfo] = useState(null);
+ 
 
   /* ---------- хуки данных ---------- */
   const { products, loading, setClientLevel } = useProducts();
@@ -60,105 +121,142 @@ function Home() {
     materials: 'Материалы',
   };
 
-  /* ---------- ФИКС ДЛЯ TELEGRAM LAYOUT ---------- */
+  /* ---------- инициализация Telegram и проверка клиента ---------- */
   useEffect(() => {
-    const fixTelegramLayout = () => {
-      console.log('🔧 Применяем фиксы для Telegram...');
-      
-      // Основные фиксы
-      document.body.style.overflow = 'auto';
-      document.body.style.position = 'relative';
-      document.body.style.backgroundColor = 'white';
-      document.documentElement.style.backgroundColor = 'white';
-      
-      // Фикс для мобильного viewport
-      const setVH = () => {
-        let vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
-      };
-      
-      setVH();
-      window.addEventListener('resize', setVH);
-      
-      // Инициализация Telegram WebApp
-      if (window.Telegram?.WebApp) {
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.enableClosingConfirmation();
-        tg.setHeaderColor('#ffffff');
-        tg.setBackgroundColor('#ffffff');
-      }
-      
-      // Принудительный рефлоу
-      setTimeout(() => {
-        window.dispatchEvent(new Event('resize'));
-      }, 100);
-      
-      return () => window.removeEventListener('resize', setVH);
-    };
-
-    const timer = setTimeout(fixTelegramLayout, 200);
-    return () => clearTimeout(timer);
-  }, []);
-
-  /* ---------- измерение высоты меню ---------- */
-  useEffect(() => {
-    const updateMenuHeight = () => {
-      if (menuRef.current) {
-        const height = menuRef.current.offsetHeight;
-        setMenuHeight(height);
-      }
-    };
-
-    updateMenuHeight();
-    window.addEventListener('resize', updateMenuHeight);
-    
-    return () => window.removeEventListener('resize', updateMenuHeight);
-  }, [showCategories, showFilters]);
-
-  /* ---------- инициализация Telegram ---------- */
-  useEffect(() => {
+    console.log('🏠 Home компонент монтируется');
+    console.log('📍 Текущий URL:', window.location.href);
+    console.log('📱 User Agent:', navigator.userAgent);
     initializeClient();
   }, []);
 
   const initializeClient = async () => {
     try {
+      console.log('🚀 Начинаем инициализацию клиента...');
+      
+      // Детальная диагностика Telegram WebApp
+      console.log('🔍 Детальная диагностика Telegram WebApp:');
+      console.log('   - window существует:', typeof window !== 'undefined');
+      console.log('   - window.Telegram:', window.Telegram);
+      console.log('   - window.Telegram?.WebApp:', window.Telegram?.WebApp);
+      
       let telegramUser = null;
 
-      if (window.Telegram?.WebApp) {
-        const tg = window.Telegram.WebApp;
-        const userData = tg.initDataUnsafe?.user;
+      // Пробуем получить данные через стандартный Telegram WebApp
+      if (typeof window !== 'undefined' && window.Telegram && window.Telegram.WebApp) {
+        console.log('✅ Telegram WebApp ОБНАРУЖЕН через window.Telegram');
+        telegramUser = TelegramService.initTelegramAuth();
+      } else {
+        console.log('🔍 Telegram WebApp не обнаружен, проверяем данные в URL...');
+        telegramUser = parseTelegramDataFromURL();
         
-        if (userData) {
-          telegramUser = {
-            id: userData.id?.toString(),
-            firstName: userData.first_name || '',
-            lastName: userData.last_name || '',
-            username: userData.username || ''
-          };
+        if (telegramUser) {
+          console.log('✅ Данные пользователя извлечены из URL');
+        } else {
+          console.log('❌ Данные пользователя не найдены в URL');
         }
       }
 
-      if (telegramUser?.id) {
+      console.log('📱 Результат инициализации Telegram:', telegramUser);
+
+      if (telegramUser && telegramUser.id) {
+        console.log('🎯 Telegram пользователь определен:', {
+          id: telegramUser.id,
+          firstName: telegramUser.firstName,
+          lastName: telegramUser.lastName,
+          username: telegramUser.username
+        });
+        
+        console.log('🔍 Проверяем уровень клиента с ID:', telegramUser.id);
         const clientData = await getClientInfo(telegramUser.id);
+        console.log('📊 Результат проверки клиента в базе:', clientData);
         
         if (clientData) {
+          console.log('✅ Клиент найден в базе:', {
+            id: telegramUser.id,
+            level: clientData.level,
+            name: clientData.name,
+            phone: clientData.phone
+          });
+          
           setClientInfo(clientData);
+          console.log('🎯 Устанавливаем уровень клиента для продуктов:', clientData.level);
           setClientLevel(clientData.level);
+          
+
+          // Показываем уведомление
+          const levelNames = { 'opt1': 'ОПТ1', 'opt2': 'ОПТ2', 'opt3': 'ОПТ3' };
+          const levelName = levelNames[clientData.level] || clientData.level;
+          const clientName = clientData.name || telegramUser.firstName || 'Клиент';
+          
+          console.log('💬 Показываем приветственное уведомление для:', clientName);
+          setTimeout(() => {
+            TelegramService.showNotification(
+              `🎉 Добро пожаловать, ${clientName}!\n\nВам доступны оптовые цены уровня: ${levelName}`
+            );
+          }, 1000);
+          
         } else {
+          console.log('❌ Клиент не найден в базе оптовых клиентов, используем розничные цены');
+          console.log('ℹ️ ID для поиска:', telegramUser.id);
           setClientInfo(null);
           setClientLevel(null);
+          
+          // Уведомление для неоптового клиента
+          setTimeout(() => {
+            TelegramService.showNotification(
+              `👋 Добро пожаловать!\n\nДля вас действуют розничные цены. По вопросам оптовых цен обращайтесь к менеджеру.`
+            );
+          }, 1000);
         }
       } else {
+        console.log('🌐 Telegram пользователь не определен, работаем в режиме розничных цен');
         setClientInfo(null);
         setClientLevel(null);
       }
     } catch (err) {
-      console.error('Ошибка инициализации:', err);
+      console.error('💥 Ошибка инициализации клиента:', err);
+      console.error('🔧 Stack trace:', err.stack);
       setClientInfo(null);
       setClientLevel(null);
     }
   };
+
+  // Логируем изменения clientInfo
+  useEffect(() => {
+    console.log('🔄 clientInfo изменился:', clientInfo);
+    if (clientInfo) {
+      console.log('💰 Установлен уровень цен:', clientInfo.level);
+    } else {
+      console.log('💰 Установлен уровень цен: РОЗНИЦА');
+    }
+  }, [clientInfo]);
+
+  // Логируем изменения products
+  useEffect(() => {
+    if (products.length > 0) {
+      console.log('📦 Продукты загружены:', {
+        count: products.length,
+        firstProduct: products[0] ? {
+          id: products[0].id,
+          model: products[0].model,
+          priceLevel: products[0].priceLevel,
+          newPrice: products[0].newPrice
+        } : null
+      });
+      
+      // Логируем разные ценовые уровни в продуктах
+      const priceLevels = products.reduce((acc, product) => {
+        acc[product.priceLevel] = (acc[product.priceLevel] || 0) + 1;
+        return acc;
+      }, {});
+      console.log('💰 Распределение ценовых уровней:', priceLevels);
+    }
+  }, [products]);
+
+  useEffect(() => {
+    console.log('🔄 Сбрасываем фильтры при смене категории:', selectedCategory);
+    setFilters({ brand: '', power: '', type: '', wifi: '' });
+  }, [selectedCategory]);
 
   /* ---------- фильтры/поиск ---------- */
   const categoryProducts = products.filter(p => p.category === selectedCategory);
@@ -167,23 +265,34 @@ function Home() {
   const types = [...new Set(categoryProducts.map(p => p.type).filter(Boolean))];
   const wifis = [...new Set(categoryProducts.map(p => p.wifi).filter(Boolean))];
 
+  console.log('🎯 Категория:', selectedCategory, 'Продуктов:', categoryProducts.length);
+
   const searchInAllProducts = (text) => {
     if (!text) return categoryProducts;
     const lower = text.toLowerCase();
-    return products.filter(
+    const results = products.filter(
       (p) =>
         p.model?.toLowerCase().includes(lower) ||
         p.productModel?.toLowerCase().includes(lower) ||
         p.manufacturer?.toLowerCase().includes(lower) ||
         p.code?.toLowerCase().includes(lower)
     );
+    console.log('🔍 Поиск:', text, 'Найдено:', results.length);
+    return results;
   };
 
   const handleSearchChange = (e) => {
+    console.log('⌨️ Ввод поиска:', e.target.value);
     setSearchTerm(e.target.value);
   };
 
   const handleAddToCart = (p) => {
+    console.log('🛒 Добавление в корзину:', {
+      id: p.id,
+      model: p.model,
+      price: p.newPrice || p.price,
+      level: p.priceLevel
+    });
     addToCart(p);
   };
 
@@ -197,14 +306,19 @@ function Home() {
     .filter((p) => !filters.type || p.type === filters.type)
     .filter((p) => !filters.wifi || p.wifi === filters.wifi);
 
+  console.log('✅ Отфильтрованные продукты:', filteredProducts.length);
+
   /* ---------- выбор категории ---------- */
   const handleSelectCategory = (key) => {
+    console.log('🎯 Выбрана категория:', key, '->', categories[key]);
     setSelectedCategory(key);
     setShowCategories(false);
   };
 
   /* ---------- управление выплывающими меню ---------- */
   const toggleDrawer = (type) => {
+    console.log('📱 Переключение меню:', type);
+    
     if (type === 'cat') {
       setShowFilters(false);
       setShowCategories((p) => !p);
@@ -222,6 +336,7 @@ function Home() {
         const isCategoryButton = event.target.closest('button')?.textContent === 'Категории';
         const isFilterButton = event.target.closest('button')?.textContent === 'Фильтры';
         if (!isCategoryButton && !isFilterButton) {
+          console.log('👆 Клик вне меню, закрываем выпадающие списки');
           setShowCategories(false);
           setShowFilters(false);
         }
@@ -231,301 +346,236 @@ function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Функция проверки Telegram WebApp
+  // Функция проверки Telegram WebApp (исправленная)
   const isTelegramWebApp = () => {
-    return typeof window !== 'undefined' && 
-           (!!window.Telegram?.WebApp || window.location.href.includes('tgWebAppData'));
+    const isTg = typeof window !== 'undefined' && 
+                 (!!window.Telegram?.WebApp || 
+                  window.location.href.includes('tgWebAppData'));
+    console.log('🔍 Проверка Telegram WebApp:', isTg ? 'обнаружен' : 'не обнаружен');
+    return isTg;
   };
 
   /* ---------- загрузка ---------- */
   if (loading) {
+    console.log('⏳ Показываем индикатор загрузки...');
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className={`mx-auto ${isMobile ? 'px-2 py-2' : 'px-4 py-8'}`}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Загрузка каталога...</p>
+          <p className="text-gray-600">Загрузка данных...</p>
+          {clientInfo && (
+            <p className="text-sm text-green-600 mt-2">
+               {clientInfo.level.toUpperCase()}
+            </p>
+          )}
         </div>
       </div>
     );
   }
 
-  if (products.length === 0 && !loading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Товары временно недоступны</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
-          >
-            Обновить
-          </button>
-        </div>
-      </div>
-    );
-  }
+  console.log('🎨 Рендерим основной интерфейс');
+  console.log('📊 Статус:', {
+    clientInfo,
+    productsCount: products.length,
+    filteredCount: filteredProducts.length,
+    cartItems: getTotalItems(),
+    isMobile
+  });
 
   /* ---------- отображение ---------- */
   return (
-    <div className="min-h-screen bg-white">
+    <div className="relative">
       
-      {/* ЛИПКОЕ МЕНЮ */}
-      <div className="sticky top-0 z-50 bg-white shadow-md border-b border-gray-200" ref={menuRef}>
-        <div className={`${isMobile ? 'px-3 py-2' : 'px-4 py-3'}`}>
+      {/* 1. ЛИПКОЕ МЕНЮ */}
+      <div className="sticky-menu">
+        <div
+          className={`
+            fixed top-0 left-0 right-0 z-40 bg-white shadow-lg border-b border-gray-200
+            ${isMobile ? 'px-2 py-2' : 'px-4 py-3'}
+          `}
           
+        >
           {/* Верхний ряд: поиск + корзина */}
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-3 mb-2 h-8">
             {/* Поле поиска */}
-            <div className="flex-1">
+            <div className="flex-1 max-w-[70%]">
               <input
                 type="text"
                 placeholder={isMobile ? 'Поиск...' : 'Поиск по товарам...'}
                 value={searchTerm}
                 onChange={handleSearchChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
+                className={`
+                  w-full border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500
+                  ${isMobile ? 'px-2 py-1 text-xs h-8' : 'px-3 py-2 text-sm h-8'}
+                `}
               />
             </div>
 
             {/* Кнопка корзины */}
             <button
-              onClick={() => setIsCartOpen(true)}
-              className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg font-medium transition-colors relative"
+              onClick={() => {
+                console.log('🛒 Открытие корзины, товаров:', getTotalItems());
+                setIsCartOpen(true);
+              }}
+              className={`
+                flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded
+                font-medium relative h-8 px-4 text-sm min-w-[96px]
+              `}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              {!isMobile && <span>Корзина</span>}
-              {getTotalItems() > 0 && (
-                <span className="bg-white text-green-600 rounded-full px-1 text-xs font-bold min-w-5 h-5 flex items-center justify-center absolute -top-1 -right-1">
-                  {getTotalItems()}
-                </span>
-              )}
+              <span>Корзина</span>
+              <span
+                className={`
+                  bg-white text-green-600 rounded-full font-bold absolute flex items-center justify-center
+                  px-1 text-xs min-w-5 h-5 -top-1 -right-1
+                `}
+              >
+                {getTotalItems()}
+              </span>
             </button>
           </div>
 
-          {/* Второй ряд: Категории + Фильтры */}
-          <div className="flex items-center gap-2">
+          {/* Второй ряд: Категории (слева) + Фильтры (справа) + Бейдж уровня */}
+          <div className="flex items-center justify-between mb-2 h-8 gap-2">
             <button
               onClick={() => toggleDrawer('cat')}
-              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                showCategories ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
+              className={`
+                px-4 py-1 rounded text-sm h-full transition-colors
+                ${showCategories ? 'bg-gray-300 text-gray-900' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}
+              `}
             >
-              📁 Категории
+              Категории
             </button>
 
-            <button
-              onClick={() => toggleDrawer('flt')}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
-                showFilters ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
-            >
-              ⚙️ Фильтры
-            </button>
+            <div className="flex items-center gap-2">
+                            
+              {!clientInfo && isTelegramWebApp() && (
+                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full whitespace-nowrap">
+                  РОЗНИЦА
+                </span>
+              )}
 
-            {/* Бейдж уровня клиента */}
-            {clientInfo ? (
-              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full whitespace-nowrap">
-                {clientInfo.level.toUpperCase()}
-              </span>
-            ) : isTelegramWebApp() ? (
-              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full whitespace-nowrap">
-                РОЗНИЦА
-              </span>
-            ) : null}
+              <button
+                onClick={() => toggleDrawer('flt')}
+                className={`
+                  flex items-center gap-1 text-white px-4 py-1 rounded text-sm h-full transition-colors
+                  ${showFilters ? 'bg-gray-700' : 'bg-gray-600 hover:bg-gray-700'}
+                `}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+                </svg>
+                Фильтры
+              </button>
+            </div>
           </div>
 
           {/* Выплывающие блоки */}
-          <div className={`transition-all duration-200 ease-in-out overflow-hidden ${
-            showCategories || showFilters ? 'max-h-64 opacity-100 mt-2' : 'max-h-0 opacity-0'
-          }`}>
+          <div
+            className={`
+              overflow-hidden transition-all duration-300 ease-in-out bg-white
+              ${showCategories || showFilters ? 'max-h-96 opacity-100 py-2' : 'max-h-0 opacity-0'}
+            `}
+          >
             {showCategories && (
-              <div className="bg-white border border-gray-200 rounded-lg p-2">
-                <div className="grid grid-cols-2 gap-2">
-                  {Object.entries(categories).map(([key, name]) => (
-                    <button
-                      key={key}
-                      onClick={() => handleSelectCategory(key)}
-                      className={`p-2 rounded text-sm text-left transition-colors ${
-                        selectedCategory === key
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                      }`}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <CategoryMenu
+                categories={categories}
+                selectedCategory={selectedCategory}
+                onSelectCategory={handleSelectCategory}
+                deviceType={deviceType}
+                largeButtons
+              />
             )}
 
             {showFilters && (
-              <div className="bg-white border border-gray-200 rounded-lg p-3">
-                <div className="space-y-3">
-                  {/* Бренды */}
-                  {brands.length > 0 && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Бренд</label>
-                      <select 
-                        value={filters.brand}
-                        onChange={(e) => setFilters(prev => ({...prev, brand: e.target.value}))}
-                        className="w-full p-2 border border-gray-300 rounded text-sm"
-                      >
-                        <option value="">Все бренды</option>
-                        {brands.map(brand => (
-                          <option key={brand} value={brand}>{brand}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Мощность */}
-                  {powers.length > 0 && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Мощность</label>
-                      <select 
-                        value={filters.power}
-                        onChange={(e) => setFilters(prev => ({...prev, power: e.target.value}))}
-                        className="w-full p-2 border border-gray-300 rounded text-sm"
-                      >
-                        <option value="">Любая мощность</option>
-                        {powers.map(power => (
-                          <option key={power} value={power}>{power}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Кнопка сброса */}
-                  <button
-                    onClick={() => setFilters({ brand: '', power: '', type: '', wifi: '' })}
-                    className="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 rounded text-sm"
-                  >
-                    Сбросить фильтры
-                  </button>
-                </div>
-              </div>
+              <Filters
+                brands={brands}
+                powers={powers}
+                types={types}
+                wifis={wifis}
+                filters={filters}
+                setFilters={setFilters}
+                deviceType={deviceType}
+              />
             )}
           </div>
         </div>
+
+        {/* Плейсхолдер под меню */}
+        <div
+          className="invisible"
+          style={{
+            height:
+              showCategories || showFilters
+                ? isMobile
+                  ? '180px'
+                  : '220px'
+                : isMobile
+                ? '80px'
+                : '90px',
+          }}
+        />
       </div>
 
-      {/* ОСНОВНОЙ КОНТЕНТ */}
-      <div 
-        className={`bg-gray-50 min-h-screen ${isMobile ? 'px-2 py-3' : 'px-4 py-4'}`}
-        style={{ paddingTop: `${menuHeight}px` }}
+      {/* 2. ОСНОВНОЙ КОНТЕНТ */}
+      <div
+        className={`${isMobile ? 'px-2' : 'px-4'}`}
+        style={{
+          paddingTop:
+            showCategories || showFilters
+              ? isMobile
+                ? '180px'
+                : '220px'
+              : isMobile
+              ? '80px'
+              : '90px',
+        }}
       >
-        {/* Заголовок категории */}
-        <div className="mb-4">
-          <h1 className="text-xl font-bold text-gray-900">
-            {debouncedSearchTerm
-              ? `Результаты поиска: "${debouncedSearchTerm}"`
-              : categories[selectedCategory]}
-          </h1>
-          <p className="text-gray-600 text-sm mt-1">
-            Найдено товаров: {filteredProducts.length}
-          </p>
-        </div>
-
-        {/* Список товаров в сетке 2 колонки */}
-        <div className="grid grid-cols-2 gap-3">
-          {filteredProducts.map((product) => (
-            <div 
-              key={product.id} 
-              className="bg-white rounded-lg shadow-md border-2 border-gray-100 hover:border-blue-300 transition-all duration-200 p-3 flex flex-col"
-            >
-              {/* Изображение товара */}
-              <div className="aspect-square bg-gray-50 rounded-lg mb-3 flex items-center justify-center overflow-hidden border border-gray-200">
-                {product.image ? (
-                  <img 
-                    src={product.image} 
-                    alt={product.model}
-                    className="w-full h-full object-contain p-2"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
-                  />
-                ) : null}
-                <div className="hidden flex-col items-center justify-center text-gray-400 text-xs text-center p-2">
-                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mb-1">
-                    <span className="text-gray-500">📷</span>
-                  </div>
-                  <span>Нет фото</span>
-                </div>
-              </div>
-
-              {/* Информация о товаре */}
-              <div className="flex-1 mb-3">
-                <h3 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-2 leading-tight">
-                  {product.model || product.productModel || 'Без названия'}
-                </h3>
-                <p className="text-xs text-gray-600 mb-1">
-                  {product.manufacturer || 'Производитель не указан'}
+        {/* Информация о клиенте для десктопной версии */}
+        {!isMobile && clientInfo && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-green-800">Оптовые цены активны</h3>
+                <p className="text-sm text-green-600">
+                  Уровень: <strong>{clientInfo.level.toUpperCase()}</strong> | 
+                  Клиент: <strong>{clientInfo.name}</strong>
                 </p>
-                {product.power && (
-                  <p className="text-xs text-gray-500 mb-1">
-                    💪 {product.power}
-                  </p>
-                )}
-                {product.type && (
-                  <p className="text-xs text-gray-500">
-                    📋 {product.type}
-                  </p>
-                )}
               </div>
-
-              {/* Цена и кнопка */}
-              <div className="mt-auto">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex flex-col">
-                    {product.oldPrice && product.oldPrice !== product.newPrice && (
-                      <div className="text-xs text-gray-500 line-through mb-1">
-                        {product.oldPrice} ₽
-                      </div>
-                    )}
-                    <div className="text-lg font-bold text-green-600">
-                      {product.newPrice || product.price || '0'} ₽
-                    </div>
-                  </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-green-600">
+                  {clientInfo.level.toUpperCase()}
                 </div>
-
-                <button
-                  onClick={() => handleAddToCart(product)}
-                  className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
-                >
-                  🛒 В корзину
-                </button>
+                <div className="text-xs text-green-500">
+                  Оптовые цены активны
+                </div>
               </div>
             </div>
-          ))}
-        </div>
-
-        {/* Сообщение если товаров нет */}
-        {filteredProducts.length === 0 && (
-          <div className="text-center py-8">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <span className="text-2xl">🔍</span>
-            </div>
-            <p className="text-gray-500 text-lg mb-2">Товары не найдены</p>
-            <p className="text-gray-400 text-sm mb-4">Попробуйте изменить параметры поиска или фильтры</p>
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setFilters({ brand: '', power: '', type: '', wifi: '' });
-              }}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg text-sm transition-colors"
-            >
-              Сбросить фильтры
-            </button>
           </div>
         )}
+
+        <ProductList
+          products={filteredProducts}
+          categoryName={
+            debouncedSearchTerm
+              ? `Результаты: "${debouncedSearchTerm}"`
+              : categories[selectedCategory]
+          }
+          onAddToCart={handleAddToCart}
+          deviceType={deviceType}
+          clientInfo={clientInfo}
+        />
       </div>
 
-      {/* МОДАЛКА КОРЗИНЫ */}
+      {/* 3. МОДАЛКА КОРЗИНЫ */}
       <CartModal
         isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
+        onClose={() => {
+          console.log('❌ Закрытие корзины');
+          setIsCartOpen(false);
+        }}
         cart={cart}
         onUpdateQuantity={updateQuantity}
         onRemoveFromCart={removeFromCart}
