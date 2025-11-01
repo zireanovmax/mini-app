@@ -65,17 +65,39 @@ function Home() {
     const fixTelegramLayout = () => {
       console.log('🔧 Применяем фиксы для Telegram...');
       
+      // Основные фиксы
       document.body.style.overflow = 'auto';
       document.body.style.position = 'relative';
+      document.body.style.backgroundColor = 'white';
+      document.documentElement.style.backgroundColor = 'white';
       
+      // Фикс для мобильного viewport
+      const setVH = () => {
+        let vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      };
+      
+      setVH();
+      window.addEventListener('resize', setVH);
+      
+      // Инициализация Telegram WebApp
       if (window.Telegram?.WebApp) {
         const tg = window.Telegram.WebApp;
         tg.expand();
         tg.enableClosingConfirmation();
+        tg.setHeaderColor('#ffffff');
+        tg.setBackgroundColor('#ffffff');
       }
+      
+      // Принудительный рефлоу
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 100);
+      
+      return () => window.removeEventListener('resize', setVH);
     };
 
-    const timer = setTimeout(fixTelegramLayout, 150);
+    const timer = setTimeout(fixTelegramLayout, 200);
     return () => clearTimeout(timer);
   }, []);
 
@@ -218,10 +240,26 @@ function Home() {
   /* ---------- загрузка ---------- */
   if (loading) {
     return (
-      <div className={`mx-auto ${isMobile ? 'px-2 py-2' : 'px-4 py-8'}`}>
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Загрузка данных...</p>
+          <p className="text-gray-600">Загрузка каталога...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (products.length === 0 && !loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Товары временно недоступны</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+          >
+            Обновить
+          </button>
         </div>
       </div>
     );
@@ -229,14 +267,14 @@ function Home() {
 
   /* ---------- отображение ---------- */
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       
       {/* ЛИПКОЕ МЕНЮ */}
-      <div className="sticky-menu sticky top-0 z-40 bg-white shadow-lg border-b border-gray-200" ref={menuRef}>
-        <div className={`${isMobile ? 'px-3 py-3' : 'px-4 py-3'}`}>
+      <div className="sticky top-0 z-50 bg-white shadow-md border-b border-gray-200" ref={menuRef}>
+        <div className={`${isMobile ? 'px-3 py-2' : 'px-4 py-3'}`}>
           
           {/* Верхний ряд: поиск + корзина */}
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-2 mb-2">
             {/* Поле поиска */}
             <div className="flex-1">
               <input
@@ -244,80 +282,129 @@ function Home() {
                 placeholder={isMobile ? 'Поиск...' : 'Поиск по товарам...'}
                 value={searchTerm}
                 onChange={handleSearchChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
               />
             </div>
 
             {/* Кнопка корзины */}
             <button
               onClick={() => setIsCartOpen(true)}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors relative min-w-[100px] justify-center"
+              className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg font-medium transition-colors relative"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              <span className="hidden sm:inline">Корзина</span>
-              <span className="bg-white text-green-600 rounded-full px-1 text-xs font-bold min-w-5 h-5 flex items-center justify-center absolute -top-1 -right-1">
-                {getTotalItems()}
-              </span>
+              {!isMobile && <span>Корзина</span>}
+              {getTotalItems() > 0 && (
+                <span className="bg-white text-green-600 rounded-full px-1 text-xs font-bold min-w-5 h-5 flex items-center justify-center absolute -top-1 -right-1">
+                  {getTotalItems()}
+                </span>
+              )}
             </button>
           </div>
 
           {/* Второй ряд: Категории + Фильтры */}
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => toggleDrawer('cat')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex-1 ${
-                showCategories ? 'bg-gray-300 text-gray-900' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                showCategories ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
               }`}
             >
-              Категории
+              📁 Категории
             </button>
 
-            <div className="flex items-center gap-2">
-              {!clientInfo && isTelegramWebApp() && (
-                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full whitespace-nowrap">
-                  РОЗНИЦА
-                </span>
-              )}
+            <button
+              onClick={() => toggleDrawer('flt')}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+                showFilters ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+              }`}
+            >
+              ⚙️ Фильтры
+            </button>
 
-              <button
-                onClick={() => toggleDrawer('flt')}
-                className={`flex items-center gap-2 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  showFilters ? 'bg-gray-700' : 'bg-gray-600 hover:bg-gray-700'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
-                </svg>
-                <span className="hidden sm:inline">Фильтры</span>
-              </button>
-            </div>
+            {/* Бейдж уровня клиента */}
+            {clientInfo ? (
+              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full whitespace-nowrap">
+                {clientInfo.level.toUpperCase()}
+              </span>
+            ) : isTelegramWebApp() ? (
+              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full whitespace-nowrap">
+                РОЗНИЦА
+              </span>
+            ) : null}
           </div>
 
           {/* Выплывающие блоки */}
-          <div className={`transition-all duration-300 ease-in-out ${
-            showCategories || showFilters ? 'max-h-96 opacity-100 mt-3' : 'max-h-0 opacity-0'
+          <div className={`transition-all duration-200 ease-in-out overflow-hidden ${
+            showCategories || showFilters ? 'max-h-64 opacity-100 mt-2' : 'max-h-0 opacity-0'
           }`}>
             {showCategories && (
-              <CategoryMenu
-                categories={categories}
-                selectedCategory={selectedCategory}
-                onSelectCategory={handleSelectCategory}
-                deviceType={deviceType}
-              />
+              <div className="bg-white border border-gray-200 rounded-lg p-2">
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(categories).map(([key, name]) => (
+                    <button
+                      key={key}
+                      onClick={() => handleSelectCategory(key)}
+                      className={`p-2 rounded text-sm text-left transition-colors ${
+                        selectedCategory === key
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
             {showFilters && (
-              <Filters
-                brands={brands}
-                powers={powers}
-                types={types}
-                wifis={wifis}
-                filters={filters}
-                setFilters={setFilters}
-                deviceType={deviceType}
-              />
+              <div className="bg-white border border-gray-200 rounded-lg p-3">
+                <div className="space-y-3">
+                  {/* Бренды */}
+                  {brands.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Бренд</label>
+                      <select 
+                        value={filters.brand}
+                        onChange={(e) => setFilters(prev => ({...prev, brand: e.target.value}))}
+                        className="w-full p-2 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="">Все бренды</option>
+                        {brands.map(brand => (
+                          <option key={brand} value={brand}>{brand}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Мощность */}
+                  {powers.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Мощность</label>
+                      <select 
+                        value={filters.power}
+                        onChange={(e) => setFilters(prev => ({...prev, power: e.target.value}))}
+                        className="w-full p-2 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="">Любая мощность</option>
+                        {powers.map(power => (
+                          <option key={power} value={power}>{power}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Кнопка сброса */}
+                  <button
+                    onClick={() => setFilters({ brand: '', power: '', type: '', wifi: '' })}
+                    className="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 rounded text-sm"
+                  >
+                    Сбросить фильтры
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -325,16 +412,25 @@ function Home() {
 
       {/* ОСНОВНОЙ КОНТЕНТ */}
       <div 
-        className={`${isMobile ? 'px-3 py-4' : 'px-4 py-6'}`}
+        className={`bg-gray-50 min-h-screen ${isMobile ? 'px-3 py-3' : 'px-4 py-4'}`}
         style={{ paddingTop: `${menuHeight}px` }}
       >
+        {/* Заголовок категории */}
+        <div className="mb-4">
+          <h1 className="text-xl font-bold text-gray-900">
+            {debouncedSearchTerm
+              ? `Результаты поиска: "${debouncedSearchTerm}"`
+              : categories[selectedCategory]}
+          </h1>
+          <p className="text-gray-600 text-sm mt-1">
+            Найдено товаров: {filteredProducts.length}
+          </p>
+        </div>
+
+        {/* Список товаров */}
         <ProductList
           products={filteredProducts}
-          categoryName={
-            debouncedSearchTerm
-              ? `Результаты: "${debouncedSearchTerm}"`
-              : categories[selectedCategory]
-          }
+          categoryName={categories[selectedCategory]}
           onAddToCart={handleAddToCart}
           deviceType={deviceType}
           clientInfo={clientInfo}
